@@ -1705,14 +1705,26 @@
           color: #f0f;
           margin-bottom: 20px;
           text-shadow: 0 0 10px rgba(255, 10, 150, 0.7);
-        ">跨设备数据同步</h4>
-        <p style="
-          color: rgba(10, 255, 255, 0.8);
+        ">跨设备自动同步</h4>
+        <div style="
+          background-color: rgba(10, 255, 10, 0.2);
+          border: 1px solid rgba(10, 255, 10, 0.4);
+          border-radius: 8px;
+          padding: 15px;
           margin-bottom: 20px;
-          line-height: 1.6;
         ">
-          由于本网站使用浏览器本地存储，不同设备间的数据不共享。您可以通过以下方式在设备间同步数据：
-        </p>
+          <h5 style="
+            color: #0f0;
+            margin-bottom: 10px;
+            font-size: 1rem;
+          ">🌟 推荐：浏览器自动同步</h5>
+          <p style="
+            color: rgba(10, 255, 10, 0.9);
+            line-height: 1.6;
+          ">
+            最简单的方法是在所有设备上使用同一浏览器账号登录，启用浏览器的同步功能。这样您的所有数据会自动在设备间同步，无需任何手动操作！
+          </p>
+        </div>
         <div style="margin-bottom: 20px;">
           <button class="btn btn-primary" onclick="exportData()" style="margin-right: 10px;">导出数据</button>
           <label class="btn btn-secondary" for="import-file" style="cursor: pointer;">
@@ -1732,16 +1744,44 @@
             margin-bottom: 10px;
             font-size: 1rem;
           ">使用说明：</h5>
-          <ul style="
-            color: rgba(10, 255, 255, 0.7);
-            list-style-position: inside;
-            line-height: 1.6;
-          ">
-            <li>在主设备上点击"导出数据"，下载JSON文件</li>
-            <li>在其他设备上登录网站，点击"导入数据"，选择下载的JSON文件</li>
-            <li>导入完成后，页面会自动刷新，显示同步的数据</li>
-            <li>建议定期导出数据备份，以防数据丢失</li>
-          </ul>
+          <div style="margin-bottom: 20px;">
+            <h6 style="
+              color: #f0f;
+              margin-bottom: 10px;
+              font-size: 0.9rem;
+            ">📱 方法一：浏览器自动同步（推荐）</h6>
+            <ol style="
+              color: rgba(10, 255, 255, 0.7);
+              list-style-position: inside;
+              line-height: 1.6;
+            ">
+              <li>在电脑上：打开Chrome浏览器，登录您的Google账号</li>
+              <li>在手机上：打开Chrome浏览器，使用同一Google账号登录</li>
+              <li>启用浏览器同步功能：
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                  <li>Chrome: 设置 → 同步和Google服务 → 管理同步 → 启用"扩展程序和主题"</li>
+                  <li>Edge: 设置 → 配置文件 → 同步 → 启用"扩展"</li>
+                </ul>
+              </li>
+              <li>完成！数据会自动在设备间同步</li>
+            </ol>
+          </div>
+          <div>
+            <h6 style="
+              color: #f0f;
+              margin-bottom: 10px;
+              font-size: 0.9rem;
+            ">💾 方法二：手动导入导出（备用）</h6>
+            <ol style="
+              color: rgba(10, 255, 255, 0.7);
+              list-style-position: inside;
+              line-height: 1.6;
+            ">
+              <li>在源设备上点击"导出数据"，下载JSON文件</li>
+              <li>在目标设备上点击"导入数据"，选择下载的JSON文件</li>
+              <li>导入完成后，页面会自动刷新</li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>
