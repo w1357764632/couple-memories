@@ -1341,7 +1341,17 @@
       <div id="detail-loading" class="loading">加载中</div>
       <div id="detail-content" style="display: none;">
         <div class="image-container">
-          <img id="detail-image" src="" alt="">
+          <img id="detail-image" src="" alt="" style="cursor: pointer;" onclick="toggleFullscreen(this)">
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+          ">
+            <button class="btn btn-primary" onclick="navigateImage('prev')" id="prev-btn">上一张</button>
+            <span id="image-counter" style="color: rgba(10, 255, 255, 0.8); font-size: 1.1rem; font-weight: 600;"></span>
+            <button class="btn btn-primary" onclick="navigateImage('next')" id="next-btn">下一张</button>
+          </div>
         </div>
         <div class="detail-info">
           <h2 id="detail-description"></h2>
@@ -2465,6 +2475,8 @@
       // 模拟加载延迟
       setTimeout(() => {
         const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+        // 按时间倒序排列
+        storedImages.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
         const image = storedImages.find(img => img.id === imageId);
 
         if (image) {
@@ -2518,6 +2530,9 @@
           // 添加互动功能
           addInteractionFeatures(image.id);
 
+          // 更新导航控制
+          updateNavigationControls(storedImages, imageId);
+
           detailLoading.style.display = 'none';
           detailContent.style.display = 'block';
 
@@ -2541,6 +2556,83 @@
         // 使用 location.reload() 确保完全刷新页面，避免缓存问题
         location.reload();
       }
+    }
+
+    // 切换全屏
+    function toggleFullscreen(element) {
+      if (!document.fullscreenElement) {
+        if (element.requestFullscreen) {
+          element.requestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          element.mozRequestFullScreen();
+        } else if (element.webkitRequestFullscreen) {
+          element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) {
+          element.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    // 更新导航控制
+    function updateNavigationControls(images, currentId) {
+      const currentIndex = images.findIndex(img => img.id === currentId);
+      const totalImages = images.length;
+      
+      // 更新图片计数器
+      document.getElementById('image-counter').textContent = `${currentIndex + 1}/${totalImages}`;
+      
+      // 更新按钮状态
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === totalImages - 1;
+      
+      if (prevBtn.disabled) {
+        prevBtn.style.opacity = '0.5';
+        prevBtn.style.cursor = 'not-allowed';
+      } else {
+        prevBtn.style.opacity = '1';
+        prevBtn.style.cursor = 'pointer';
+      }
+      
+      if (nextBtn.disabled) {
+        nextBtn.style.opacity = '0.5';
+        nextBtn.style.cursor = 'not-allowed';
+      } else {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.cursor = 'pointer';
+      }
+    }
+
+    // 导航图片
+    function navigateImage(direction) {
+      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      // 按时间倒序排列
+      storedImages.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      
+      const currentIndex = storedImages.findIndex(img => img.id === currentImageId);
+      let newIndex;
+      
+      if (direction === 'prev') {
+        newIndex = currentIndex - 1;
+        if (newIndex < 0) return;
+      } else {
+        newIndex = currentIndex + 1;
+        if (newIndex >= storedImages.length) return;
+      }
+      
+      showImageDetail(storedImages[newIndex].id);
     }
 
     // 格式化日期
