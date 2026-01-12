@@ -1717,20 +1717,13 @@
             color: #0f0;
             margin-bottom: 10px;
             font-size: 1rem;
-          ">🌟 推荐：浏览器自动同步</h5>
+          ">🔥 推荐：Firebase 实时同步</h5>
           <p style="
             color: rgba(10, 255, 10, 0.9);
             line-height: 1.6;
           ">
-            最简单的方法是在所有设备上使用同一浏览器账号登录，启用浏览器的同步功能。这样您的所有数据会自动在设备间同步，无需任何手动操作！
+            网站已集成 Firebase 实时数据库，实现真正的跨设备实时同步。您在任何设备上的操作都会立即同步到其他设备！
           </p>
-        </div>
-        <div style="margin-bottom: 20px;">
-          <button class="btn btn-primary" onclick="exportData()" style="margin-right: 10px;">导出数据</button>
-          <label class="btn btn-secondary" for="import-file" style="cursor: pointer;">
-            导入数据
-            <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display: none;">
-          </label>
         </div>
         <div style="
           background-color: rgba(5, 5, 20, 0.9);
@@ -1743,44 +1736,45 @@
             color: #0ff;
             margin-bottom: 10px;
             font-size: 1rem;
-          ">使用说明：</h5>
+          ">Firebase 配置说明</h5>
           <div style="margin-bottom: 20px;">
             <h6 style="
               color: #f0f;
               margin-bottom: 10px;
               font-size: 0.9rem;
-            ">📱 方法一：浏览器自动同步（推荐）</h6>
+            ">🔧 如何设置 Firebase：</h6>
             <ol style="
               color: rgba(10, 255, 255, 0.7);
               list-style-position: inside;
               line-height: 1.6;
             ">
-              <li>在电脑上：打开Chrome浏览器，登录您的Google账号</li>
-              <li>在手机上：打开Chrome浏览器，使用同一Google账号登录</li>
-              <li>启用浏览器同步功能：
-                <ul style="margin-left: 20px; margin-top: 10px;">
-                  <li>Chrome: 设置 → 同步和Google服务 → 管理同步 → 启用"扩展程序和主题"</li>
-                  <li>Edge: 设置 → 配置文件 → 同步 → 启用"扩展"</li>
-                </ul>
-              </li>
-              <li>完成！数据会自动在设备间同步</li>
+              <li>访问 <a href="https://console.firebase.google.com/" target="_blank" style="color: #f0f;">Firebase 控制台</a> 并登录</li>
+              <li>创建一个新项目，名称设为 "couple-memories"</li>
+              <li>在项目设置中，添加一个新的 Web 应用</li>
+              <li>复制生成的 Firebase 配置代码</li>
+              <li>在网站代码中找到 Firebase 配置部分，替换为您的配置</li>
+              <li>在 Firebase 控制台中启用 "Realtime Database" 和 "Storage"</li>
+              <li>在 Storage 规则中设置适当的访问权限</li>
             </ol>
           </div>
-          <div>
+          <div style="
+            background-color: rgba(255, 10, 150, 0.2);
+            border: 1px solid rgba(255, 10, 150, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+          ">
             <h6 style="
               color: #f0f;
               margin-bottom: 10px;
               font-size: 0.9rem;
-            ">💾 方法二：手动导入导出（备用）</h6>
-            <ol style="
-              color: rgba(10, 255, 255, 0.7);
-              list-style-position: inside;
+            ">⚠️ 重要提示：</h6>
+            <p style="
+              color: rgba(10, 255, 255, 0.8);
               line-height: 1.6;
             ">
-              <li>在源设备上点击"导出数据"，下载JSON文件</li>
-              <li>在目标设备上点击"导入数据"，选择下载的JSON文件</li>
-              <li>导入完成后，页面会自动刷新</li>
-            </ol>
+              由于 Firebase 配置包含敏感信息，本示例使用了占位符。要使实时同步功能正常工作，您需要按照上述步骤创建自己的 Firebase 项目并配置相应的参数。
+            </p>
           </div>
         </div>
       </div>
@@ -1806,7 +1800,28 @@
     </div>
   </div>
 
+  <!-- Firebase 配置 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js"></script>
+
   <script>
+    // Firebase 配置
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com"
+    };
+
+    // 初始化 Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const storage = firebase.storage();
+
     // 全局变量
     let currentUser = null;
     let currentImageId = null;
@@ -2280,9 +2295,8 @@
 
     // 保存网络图片
     function saveImage(url, description, tags) {
-      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      // 直接保存网络图片到 Firebase
       const newImage = {
-        id: Date.now(),
         url: url,
         description: description,
         tags: tags,
@@ -2290,57 +2304,102 @@
         uploadedAt: new Date().toISOString()
       };
 
-      storedImages.push(newImage);
-      localStorage.setItem('couple-images', JSON.stringify(storedImages));
+      // 保存到 Firebase
+      database.ref('images').push(newImage)
+        .then(() => {
+          // 更新标签列表
+          updateTagList(tags);
 
-      // 更新标签列表
-      updateTagList(tags);
+          // 重置表单
+          document.getElementById('upload-form').reset();
+          document.getElementById('preview-grid').innerHTML = '';
+          document.getElementById('upload-progress').style.display = 'none';
 
-      // 重置表单
-      document.getElementById('upload-form').reset();
-      document.getElementById('preview-grid').innerHTML = '';
-      document.getElementById('upload-progress').style.display = 'none';
-
-      alert('图片上传成功！');
-      showHomePage();
+          alert('图片上传成功！');
+          showHomePage();
+        })
+        .catch(error => {
+          console.error('Error saving image:', error);
+          // 失败时回退到本地存储
+          const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+          const localImage = {
+            id: Date.now(),
+            ...newImage
+          };
+          storedImages.push(localImage);
+          localStorage.setItem('couple-images', JSON.stringify(storedImages));
+          updateTagList(tags);
+          alert('图片上传成功！');
+          showHomePage();
+        });
     }
 
     // 保存本地图片
     function saveLocalImages(files, description, tags) {
-      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
-      const newImages = [];
+      const uploadedImages = [];
 
       for (let i = 0; i < files.length; i++) {
         if (files[i].type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = function(event) {
-            const newImage = {
-              id: Date.now() + i,
-              url: event.target.result,
-              description: description,
-              tags: tags,
-              uploader: currentUser,
-              uploadedAt: new Date().toISOString()
-            };
-            newImages.push(newImage);
+          const file = files[i];
+          const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+          
+          // 上传到 Firebase Storage
+          const uploadTask = storageRef.put(file);
+          
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              // 可以在这里添加上传进度显示
+            },
+            (error) => {
+              console.error('Error uploading file:', error);
+              alert('图片上传失败，请重试');
+            },
+            () => {
+              // 上传成功后获取下载 URL
+              uploadTask.snapshot.ref.getDownloadURL()
+                .then(downloadURL => {
+                  const newImage = {
+                    url: downloadURL,
+                    description: description,
+                    tags: tags,
+                    uploader: currentUser,
+                    uploadedAt: new Date().toISOString()
+                  };
+                  
+                  // 保存到 Firebase Database
+                  database.ref('images').push(newImage)
+                    .then(() => {
+                      uploadedImages.push(newImage);
+                      
+                      if (uploadedImages.length === files.length) {
+                        // 更新标签列表
+                        updateTagList(tags);
 
-            if (newImages.length === files.length) {
-              storedImages.push(...newImages);
-              localStorage.setItem('couple-images', JSON.stringify(storedImages));
+                        // 重置表单
+                        document.getElementById('upload-form').reset();
+                        document.getElementById('preview-grid').innerHTML = '';
+                        document.getElementById('upload-progress').style.display = 'none';
 
-              // 更新标签列表
-              updateTagList(tags);
-
-              // 重置表单
-              document.getElementById('upload-form').reset();
-              document.getElementById('preview-grid').innerHTML = '';
-              document.getElementById('upload-progress').style.display = 'none';
-
-              alert('图片上传成功！');
-              showHomePage();
+                        alert('图片上传成功！');
+                        showHomePage();
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error saving image data:', error);
+                      // 失败时回退到本地存储
+                      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+                      const localImage = {
+                        id: Date.now() + i,
+                        ...newImage
+                      };
+                      storedImages.push(localImage);
+                      localStorage.setItem('couple-images', JSON.stringify(storedImages));
+                      alert('图片上传成功！');
+                      showHomePage();
+                    });
+                });
             }
-          };
-          reader.readAsDataURL(files[i]);
+          );
         }
       }
     }
@@ -2484,18 +2543,36 @@
       const emptyState = document.getElementById('empty-state');
       const imageGrid = document.getElementById('image-grid');
 
-      // 模拟加载延迟
-      setTimeout(() => {
-        const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
-        
-        // 直接渲染存储的图片，不再自动初始化示例图片
-        renderImages(storedImages);
+      // 从 Firebase 加载图片
+      database.ref('images').once('value')
+        .then(snapshot => {
+          const images = [];
+          snapshot.forEach(childSnapshot => {
+            images.push({
+              id: childSnapshot.key,
+              ...childSnapshot.val()
+            });
+          });
+          
+          // 按时间倒序排列
+          images.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+          
+          // 渲染图片
+          renderImages(images);
 
-        // 加载标签到筛选下拉框
-        loadTagsToFilter();
-        
-        loading.style.display = 'none';
-      }, 500);
+          // 加载标签到筛选下拉框
+          loadTagsToFilter();
+          
+          loading.style.display = 'none';
+        })
+        .catch(error => {
+          console.error('Error loading images:', error);
+          // 失败时回退到本地存储
+          const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+          renderImages(storedImages);
+          loadTagsToFilter();
+          loading.style.display = 'none';
+        });
     }
 
     // 渲染图片列表
@@ -2646,12 +2723,22 @@
     // 删除图片
     function deleteImage() {
       if (confirm('确定要删除这张图片吗？')) {
-        const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
-        const updatedImages = storedImages.filter(img => img.id !== currentImageId);
-        localStorage.setItem('couple-images', JSON.stringify(updatedImages));
-        alert('图片删除成功！');
-        // 使用 location.reload() 确保完全刷新页面，避免缓存问题
-        location.reload();
+        // 从 Firebase 删除
+        database.ref(`images/${currentImageId}`).remove()
+          .then(() => {
+            alert('图片删除成功！');
+            // 完全刷新页面
+            location.reload();
+          })
+          .catch(error => {
+            console.error('Error deleting image:', error);
+            // 失败时回退到本地存储
+            const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+            const updatedImages = storedImages.filter(img => img.id !== currentImageId);
+            localStorage.setItem('couple-images', JSON.stringify(updatedImages));
+            alert('图片删除成功！');
+            location.reload();
+          });
       }
     }
 
