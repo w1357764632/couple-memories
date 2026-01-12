@@ -1495,7 +1495,7 @@
         </div>
       </div>
 
-      <!-- 最近上传的图片 -->
+      <!-- 最近上传 -->
       <div class="profile-section">
         <h3>最近上传</h3>
         <div id="recent-images" class="image-grid"></div>
@@ -1759,6 +1759,12 @@
         uploadForm.addEventListener('submit', handleUpload);
       }
 
+      // 纪念日表单
+      const anniversaryForm = document.getElementById('anniversary-form');
+      if (anniversaryForm) {
+        anniversaryForm.addEventListener('submit', handleAnniversarySubmit);
+      }
+
       // 图片来源切换
       const imageSourceRadios = document.querySelectorAll('input[name="image-source"]');
       imageSourceRadios.forEach(radio => {
@@ -1773,43 +1779,34 @@
         });
       });
 
-      // 文件上传
-      const fileInput = document.getElementById('image-files');
-      if (fileInput) {
-        fileInput.addEventListener('change', handleFileChange);
+      // 文件上传预览
+      const imageFiles = document.getElementById('image-files');
+      if (imageFiles) {
+        imageFiles.addEventListener('change', handleFileSelect);
       }
 
-      // 拖拽上传
+      // 拖放上传
       const fileDropArea = document.getElementById('file-drop-area');
       if (fileDropArea) {
-        fileDropArea.addEventListener('dragover', handleDragOver);
-        fileDropArea.addEventListener('dragleave', handleDragLeave);
-        fileDropArea.addEventListener('drop', handleDrop);
+        fileDropArea.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          this.classList.add('drag-over');
+        });
+
+        fileDropArea.addEventListener('dragleave', function() {
+          this.classList.remove('drag-over');
+        });
+
+        fileDropArea.addEventListener('drop', function(e) {
+          e.preventDefault();
+          this.classList.remove('drag-over');
+          
+          if (e.dataTransfer.files.length > 0) {
+            document.getElementById('image-files').files = e.dataTransfer.files;
+            handleFileSelect({ target: { files: e.dataTransfer.files } });
+          }
+        });
       }
-    }
-
-    // 显示登录表单
-    function showLoginForm() {
-      document.getElementById('login-form').style.display = 'block';
-      document.getElementById('register-form').style.display = 'none';
-      document.getElementById('login-tab').style.borderBottom = '3px solid #0ff';
-      document.getElementById('login-tab').style.color = '#0ff';
-      document.getElementById('login-tab').style.textShadow = '0 0 8px rgba(10, 255, 255, 0.7)';
-      document.getElementById('register-tab').style.borderBottom = '3px solid transparent';
-      document.getElementById('register-tab').style.color = 'rgba(10, 255, 255, 0.6)';
-      document.getElementById('register-tab').style.textShadow = 'none';
-    }
-
-    // 显示注册表单
-    function showRegisterForm() {
-      document.getElementById('login-form').style.display = 'none';
-      document.getElementById('register-form').style.display = 'block';
-      document.getElementById('register-tab').style.borderBottom = '3px solid #0ff';
-      document.getElementById('register-tab').style.color = '#0ff';
-      document.getElementById('register-tab').style.textShadow = '0 0 8px rgba(10, 255, 255, 0.7)';
-      document.getElementById('login-tab').style.borderBottom = '3px solid transparent';
-      document.getElementById('login-tab').style.color = 'rgba(10, 255, 255, 0.6)';
-      document.getElementById('login-tab').style.textShadow = 'none';
     }
 
     // 处理登录
@@ -1819,19 +1816,26 @@
       const password = document.getElementById('login-password').value;
       const errorElement = document.getElementById('login-error');
 
-      // 验证用户名和密码
-      const user = validUsers.find(
-        (user) => (user.username === username || user.email === username) && user.password === password
+      // 检查固定账号
+      const user = validUsers.find(u => 
+        (u.username === username || u.email === username) && u.password === password
       );
 
       if (user) {
         currentUser = user.username;
         localStorage.setItem('couple-username', user.username);
-        // 更新最后登录时间
-        localStorage.setItem(`user-${user.username}-last-login`, new Date().toISOString());
+        localStorage.setItem('couple-email', user.email);
+        localStorage.setItem('couple-last-login', new Date().toISOString());
+        
+        // 如果是新用户，设置注册时间
+        if (!localStorage.getItem('couple-joined-date')) {
+          localStorage.setItem('couple-joined-date', new Date().toISOString());
+        }
+        
+        errorElement.textContent = '';
         showHomePage();
       } else {
-        errorElement.textContent = '用户名/邮箱或密码错误';
+        errorElement.textContent = '用户名或密码错误';
       }
     }
 
@@ -1845,69 +1849,43 @@
       const errorElement = document.getElementById('register-error');
       const successElement = document.getElementById('register-success');
 
-      // 重置消息
-      errorElement.textContent = '';
-      successElement.style.display = 'none';
-
-      // 验证用户名
-      if (username.length < 3) {
-        errorElement.textContent = '用户名长度至少为3位';
-        return;
-      }
-
-      // 验证邮箱
-      const qqEmailRegex = /^[a-zA-Z0-9._%+-]+@qq\.com$/;
+      // 验证邮箱格式（QQ邮箱）
+      const qqEmailRegex = /^\d+@qq\.com$/;
       if (!qqEmailRegex.test(email)) {
         errorElement.textContent = '请输入有效的QQ邮箱';
         return;
       }
 
-      // 验证密码
-      if (password.length < 6) {
-        errorElement.textContent = '密码长度至少为6位';
-        return;
-      }
-
+      // 验证密码一致性
       if (password !== confirmPassword) {
         errorElement.textContent = '两次输入的密码不一致';
         return;
       }
 
       // 检查用户名是否已存在
-      if (validUsers.some(user => user.username === username)) {
-        errorElement.textContent = '用户名已存在';
-        return;
-      }
-
-      // 检查邮箱是否已存在
-      if (validUsers.some(user => user.email === email)) {
-        errorElement.textContent = '邮箱已被注册';
+      if (validUsers.some(u => u.username === username || u.email === email)) {
+        errorElement.textContent = '用户名或邮箱已存在';
         return;
       }
 
       // 添加新用户
-      const newUser = { username, email, password };
-      validUsers.push(newUser);
-      
-      // 保存用户信息
-      localStorage.setItem(`user-${username}-email`, email);
-      localStorage.setItem(`user-${username}-password`, password);
-      localStorage.setItem(`user-${username}-joined`, new Date().toISOString());
+      validUsers.push({
+        username: username,
+        password: password,
+        email: email
+      });
 
-      // 显示成功消息
+      errorElement.textContent = '';
       successElement.style.display = 'block';
       
-      // 重置表单
-      document.getElementById('register-form').reset();
-      
-      // 3秒后切换到登录表单
+      // 3秒后自动切换到登录表单
       setTimeout(() => {
         showLoginForm();
         successElement.style.display = 'none';
       }, 3000);
     }
 
-    // 处理个人信息编辑提交
+    // 处理个人信息编辑
     function handleProfileEditSubmit(e) {
       e.preventDefault();
       const username = document.getElementById('edit-username').value;
@@ -1915,272 +1893,167 @@
       const successElement = document.getElementById('profile-update-success');
       const errorElement = document.getElementById('profile-update-error');
 
-      // 重置消息
-      successElement.style.display = 'none';
-      errorElement.style.display = 'none';
-
-      // 验证用户名
-      if (username.length < 3) {
-        errorElement.textContent = '用户名长度至少为3位';
-        errorElement.style.display = 'block';
-        return;
-      }
-
-      // 验证邮箱
-      const qqEmailRegex = /^[a-zA-Z0-9._%+-]+@qq\.com$/;
+      // 验证邮箱格式（QQ邮箱）
+      const qqEmailRegex = /^\d+@qq\.com$/;
       if (!qqEmailRegex.test(email)) {
         errorElement.textContent = '请输入有效的QQ邮箱';
-        errorElement.style.display = 'block';
-        return;
-      }
-
-      // 检查用户名是否已被其他用户使用
-      if (validUsers.some(user => user.username === username && user.username !== currentUser)) {
-        errorElement.textContent = '用户名已存在';
-        errorElement.style.display = 'block';
-        return;
-      }
-
-      // 检查邮箱是否已被其他用户使用
-      if (validUsers.some(user => user.email === email && user.username !== currentUser)) {
-        errorElement.textContent = '邮箱已被注册';
-        errorElement.style.display = 'block';
         return;
       }
 
       // 更新用户信息
-      const userIndex = validUsers.findIndex(user => user.username === currentUser);
-      if (userIndex !== -1) {
-        validUsers[userIndex].username = username;
-        validUsers[userIndex].email = email;
-      }
-
-      // 保存到本地存储
-      localStorage.setItem(`user-${currentUser}-email`, email);
-      
-      // 如果用户名改变，更新本地存储键
-      if (username !== currentUser) {
-        // 复制数据到新键
-        const joinedDate = localStorage.getItem(`user-${currentUser}-joined`);
-        const lastLogin = localStorage.getItem(`user-${currentUser}-last-login`);
-        const password = localStorage.getItem(`user-${currentUser}-password`);
-        
-        if (joinedDate) localStorage.setItem(`user-${username}-joined`, joinedDate);
-        if (lastLogin) localStorage.setItem(`user-${username}-last-login`, lastLogin);
-        if (password) localStorage.setItem(`user-${username}-password`, password);
-        localStorage.setItem(`user-${username}-email`, email);
-        
-        // 删除旧键
-        localStorage.removeItem(`user-${currentUser}-joined`);
-        localStorage.removeItem(`user-${currentUser}-last-login`);
-        localStorage.removeItem(`user-${currentUser}-password`);
-        localStorage.removeItem(`user-${currentUser}-email`);
-        
-        // 更新当前用户
-        currentUser = username;
+      const user = validUsers.find(u => u.username === currentUser);
+      if (user) {
+        user.username = username;
+        user.email = email;
         localStorage.setItem('couple-username', username);
+        localStorage.setItem('couple-email', email);
+        
+        errorElement.textContent = '';
+        successElement.style.display = 'block';
+        
+        // 更新显示
+        document.getElementById('profile-username').textContent = username;
+        document.getElementById('profile-email').textContent = email;
+        
+        // 切换回查看模式
+        setTimeout(() => {
+          toggleEditProfile();
+          successElement.style.display = 'none';
+        }, 2000);
       }
-
-      // 显示成功消息
-      successElement.style.display = 'block';
-      
-      // 切换回查看模式
-      setTimeout(() => {
-        toggleEditProfile();
-        loadProfileInfo();
-      }, 1500);
     }
 
-    // 切换编辑个人资料模式
+    // 切换编辑模式
     function toggleEditProfile() {
-      const profileView = document.getElementById('profile-view');
-      const profileEdit = document.getElementById('profile-edit');
-      const editButton = document.getElementById('edit-profile-btn');
+      const viewMode = document.getElementById('profile-view');
+      const editMode = document.getElementById('profile-edit');
+      const editBtn = document.getElementById('edit-profile-btn');
 
-      if (profileView.style.display !== 'none') {
+      if (viewMode.style.display !== 'none') {
         // 切换到编辑模式
-        profileView.style.display = 'none';
-        profileEdit.style.display = 'block';
-        editButton.textContent = '取消编辑';
+        viewMode.style.display = 'none';
+        editMode.style.display = 'block';
+        editBtn.textContent = '取消编辑';
         
         // 填充表单数据
         document.getElementById('edit-username').value = currentUser;
-        document.getElementById('edit-email').value = localStorage.getItem(`user-${currentUser}-email`) || '';
+        document.getElementById('edit-email').value = localStorage.getItem('couple-email') || '';
       } else {
         // 切换到查看模式
-        profileView.style.display = 'block';
-        profileEdit.style.display = 'none';
-        editButton.textContent = '编辑资料';
-        
-        // 重置消息
-        document.getElementById('profile-update-success').style.display = 'none';
-        document.getElementById('profile-update-error').style.display = 'none';
+        viewMode.style.display = 'block';
+        editMode.style.display = 'none';
+        editBtn.textContent = '编辑资料';
       }
     }
 
-    // 处理个人中心表单提交
+    // 处理个人设置提交
     function handleProfileSubmit(e) {
       e.preventDefault();
       const newPassword = document.getElementById('new-password').value;
       const confirmPassword = document.getElementById('confirm-password').value;
-      const passwordSuccess = document.getElementById('password-success');
-      const passwordError = document.getElementById('password-error');
+      const successElement = document.getElementById('password-success');
+      const errorElement = document.getElementById('password-error');
 
-      // 重置消息
-      passwordSuccess.style.display = 'none';
-      passwordError.style.display = 'none';
+      if (!newPassword) {
+        errorElement.textContent = '请输入新密码';
+        return;
+      }
 
-      // 验证密码
-      if (newPassword) {
-        if (newPassword !== confirmPassword) {
-          passwordError.textContent = '两次输入的密码不一致';
-          passwordError.style.display = 'block';
-          return;
-        }
+      if (newPassword !== confirmPassword) {
+        errorElement.textContent = '两次输入的密码不一致';
+        return;
+      }
 
-        if (newPassword.length < 6) {
-          passwordError.textContent = '密码长度至少为6位';
-          passwordError.style.display = 'block';
-          return;
-        }
-
-        // 修改密码
-        changePassword(newPassword);
-        passwordSuccess.style.display = 'block';
-
-        // 重置表单
+      // 更新密码
+      const user = validUsers.find(u => u.username === currentUser);
+      if (user) {
+        user.password = newPassword;
+        errorElement.textContent = '';
+        successElement.style.display = 'block';
+        
+        // 清空表单
         document.getElementById('profile-form').reset();
-
+        
         // 3秒后隐藏成功消息
         setTimeout(() => {
-          passwordSuccess.style.display = 'none';
+          successElement.style.display = 'none';
         }, 3000);
-      }
-    }
-
-    // 处理文件选择
-    function handleFileChange(e) {
-      const files = e.target.files;
-      if (files.length > 0) {
-        showFilePreviews(files);
-      }
-    }
-
-    // 处理拖拽
-    function handleDragOver(e) {
-      e.preventDefault();
-      document.getElementById('file-drop-area').classList.add('drag-over');
-    }
-
-    function handleDragLeave(e) {
-      e.preventDefault();
-      document.getElementById('file-drop-area').classList.remove('drag-over');
-    }
-
-    function handleDrop(e) {
-      e.preventDefault();
-      document.getElementById('file-drop-area').classList.remove('drag-over');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        showFilePreviews(files);
-      }
-    }
-
-    // 显示文件预览
-    function showFilePreviews(files) {
-      const previewGrid = document.getElementById('preview-grid');
-      previewGrid.innerHTML = '';
-
-      for (let i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = function(event) {
-            const previewItem = document.createElement('div');
-            previewItem.className = 'preview-item';
-            previewItem.innerHTML = `<img src="${event.target.result}" alt="预览">`;
-            previewGrid.appendChild(previewItem);
-          };
-          reader.readAsDataURL(files[i]);
-        }
       }
     }
 
     // 处理上传
     function handleUpload(e) {
       e.preventDefault();
-      const description = document.getElementById('description').value;
-      const tags = document.getElementById('tags').value;
       const imageSource = document.querySelector('input[name="image-source"]:checked').value;
-      const uploadProgress = document.getElementById('upload-progress');
-      const progressFill = document.querySelector('.progress-fill');
-      const progressPercent = document.getElementById('progress-percent');
-
-      if (!description) {
-        alert('请添加图片描述');
-        return;
-      }
-
-      // 处理标签
-      const processedTags = tags
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
+      const description = document.getElementById('description').value;
+      const tags = document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
 
       if (imageSource === 'url') {
-        const imageUrl = document.getElementById('image-url').value;
-        if (!imageUrl) {
+        const url = document.getElementById('image-url').value;
+        if (!url) {
           alert('请输入图片URL');
           return;
         }
-
-        // 模拟上传进度
-        uploadProgress.style.display = 'block';
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          progressFill.style.width = `${progress}%`;
-          progressPercent.textContent = progress;
-          if (progress >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-              saveImage(imageUrl, description, processedTags);
-            }, 500);
-          }
-        }, 200);
+        saveImage(url, description, tags);
       } else {
         const files = document.getElementById('image-files').files;
         if (files.length === 0) {
-          alert('请选择本地图片');
+          alert('请选择要上传的图片');
           return;
         }
-
-        // 模拟上传进度
-        uploadProgress.style.display = 'block';
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          progressFill.style.width = `${progress}%`;
-          progressPercent.textContent = progress;
-          if (progress >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-              saveLocalImages(files, description, processedTags);
-            }, 500);
-          }
-        }, 200);
+        handleLocalFiles(files, description, tags);
       }
     }
 
-    // 保存网络图片
+    // 处理本地文件上传
+    function handleLocalFiles(files, description, tags) {
+      const progressElement = document.getElementById('upload-progress');
+      const progressFill = document.querySelector('.progress-fill');
+      const progressPercent = document.getElementById('progress-percent');
+      let uploadedCount = 0;
+
+      progressElement.style.display = 'block';
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) {
+          continue;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          saveImage(event.target.result, description, tags);
+          uploadedCount++;
+          
+          // 更新进度
+          const progress = Math.round((uploadedCount / files.length) * 100);
+          progressFill.style.width = progress + '%';
+          progressPercent.textContent = progress;
+
+          if (uploadedCount === files.length) {
+            setTimeout(() => {
+              progressElement.style.display = 'none';
+              progressFill.style.width = '0%';
+              progressPercent.textContent = '0';
+            }, 1000);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // 保存图片
     function saveImage(url, description, tags) {
       const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
       const newImage = {
         id: Date.now(),
         url: url,
-        description: description,
+        description: description || '无描述',
         tags: tags,
         uploader: currentUser,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
+        likes: [],
+        comments: []
       };
 
       storedImages.push(newImage);
@@ -2192,182 +2065,31 @@
       // 重置表单
       document.getElementById('upload-form').reset();
       document.getElementById('preview-grid').innerHTML = '';
-      document.getElementById('upload-progress').style.display = 'none';
 
       alert('图片上传成功！');
       showHomePage();
     }
 
-    // 保存本地图片
-    function saveLocalImages(files, description, tags) {
-      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
-      const newImages = [];
+    // 处理文件选择
+    function handleFileSelect(event) {
+      const files = event.target.files;
+      const previewGrid = document.getElementById('preview-grid');
+      previewGrid.innerHTML = '';
 
       for (let i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = function(event) {
-            const newImage = {
-              id: Date.now() + i,
-              url: event.target.result,
-              description: description,
-              tags: tags,
-              uploader: currentUser,
-              uploadedAt: new Date().toISOString()
-            };
-            newImages.push(newImage);
-
-            if (newImages.length === files.length) {
-              storedImages.push(...newImages);
-              localStorage.setItem('couple-images', JSON.stringify(storedImages));
-
-              // 更新标签列表
-              updateTagList(tags);
-
-              // 重置表单
-              document.getElementById('upload-form').reset();
-              document.getElementById('preview-grid').innerHTML = '';
-              document.getElementById('upload-progress').style.display = 'none';
-
-              alert('图片上传成功！');
-              showHomePage();
-            }
-          };
-          reader.readAsDataURL(files[i]);
+        const file = files[i];
+        if (!file.type.startsWith('image/')) {
+          continue;
         }
-      }
-    }
 
-    // 更新标签列表
-    function updateTagList(newTags) {
-      const existingTags = JSON.parse(localStorage.getItem('couple-tags') || '[]');
-      const allTags = [...new Set([...existingTags, ...newTags])];
-      localStorage.setItem('couple-tags', JSON.stringify(allTags));
-    }
-
-    // 获取所有标签
-    function getAllTags() {
-      return JSON.parse(localStorage.getItem('couple-tags') || '[]');
-    }
-
-    // 加载标签到筛选下拉框
-    function loadTagsToFilter() {
-      const tagFilter = document.getElementById('tag-filter');
-      if (tagFilter) {
-        const tags = getAllTags();
-        // 清空现有选项（保留"所有标签"）
-        while (tagFilter.options.length > 1) {
-          tagFilter.remove(1);
-        }
-        // 添加标签选项
-        tags.forEach(tag => {
-          const option = document.createElement('option');
-          option.value = tag;
-          option.textContent = tag;
-          tagFilter.appendChild(option);
-        });
-      }
-    }
-
-    // 执行搜索
-    function performSearch() {
-      const searchInput = document.getElementById('search-input').value.toLowerCase();
-      const tagFilter = document.getElementById('tag-filter').value;
-      const searchResults = document.getElementById('search-results');
-      
-      // 加载所有图片
-      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
-      
-      // 执行搜索和筛选
-      let filteredImages = storedImages;
-      
-      // 按标签筛选
-      if (tagFilter) {
-        filteredImages = filteredImages.filter(image => 
-          image.tags && image.tags.includes(tagFilter)
-        );
-      }
-      
-      // 按搜索词筛选
-      if (searchInput) {
-        filteredImages = filteredImages.filter(image => 
-          image.description.toLowerCase().includes(searchInput) ||
-          (image.tags && image.tags.some(tag => tag.toLowerCase().includes(searchInput)))
-        );
-      }
-      
-      // 更新搜索结果统计
-      if (searchResults) {
-        if (tagFilter && searchInput) {
-          searchResults.textContent = `搜索结果: 包含标签"${tagFilter}"且匹配"${searchInput}"的图片 (${filteredImages.length} 张)`;
-        } else if (tagFilter) {
-          searchResults.textContent = `搜索结果: 包含标签"${tagFilter}"的图片 (${filteredImages.length} 张)`;
-        } else if (searchInput) {
-          searchResults.textContent = `搜索结果: 匹配"${searchInput}"的图片 (${filteredImages.length} 张)`;
-        } else {
-          searchResults.textContent = `显示所有图片 (${filteredImages.length} 张)`;
-        }
-      }
-      
-      // 渲染筛选后的图片
-      const emptyState = document.getElementById('empty-state');
-      const imageGrid = document.getElementById('image-grid');
-      const loading = document.getElementById('loading');
-      
-      loading.style.display = 'none';
-      
-      if (filteredImages.length === 0) {
-        emptyState.style.display = 'block';
-        imageGrid.innerHTML = '';
-      } else {
-        emptyState.style.display = 'none';
-        imageGrid.innerHTML = '';
-        
-        // 按时间倒序排列
-        filteredImages.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-        
-        filteredImages.forEach(image => {
-          const imageCard = document.createElement('div');
-          imageCard.className = 'image-card';
-          
-          // 生成标签HTML
-          const tagsHTML = image.tags && image.tags.length > 0 
-            ? `
-              <div class="image-tags" style="margin: 10px 0;">
-                ${image.tags.map(tag => `
-                  <span style="
-                    display: inline-block;
-                    padding: 4px 12px;
-                    margin: 0 4px 4px 0;
-                    background-color: rgba(255, 10, 150, 0.2);
-                    color: #f0f;
-                    border: 1px solid rgba(255, 10, 150, 0.4);
-                    border-radius: 15px;
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    box-shadow: 0 0 8px rgba(255, 10, 150, 0.3);
-                  ">${tag}</span>
-                `).join('')}
-              </div>
-            `
-            : '';
-          
-          imageCard.innerHTML = `
-            <div class="image-thumbnail">
-              <img src="${image.url}" alt="${image.description}">
-            </div>
-            <div class="image-info">
-              <h3>${image.description}</h3>
-              ${tagsHTML}
-              <div class="image-meta">
-                <span>上传者: ${image.uploader}</span>
-                <span>${formatDate(image.uploadedAt)}</span>
-              </div>
-            </div>
-          `;
-          imageCard.addEventListener('click', () => showImageDetail(image.id));
-          imageGrid.appendChild(imageCard);
-        });
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const previewItem = document.createElement('div');
+          previewItem.className = 'preview-item';
+          previewItem.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+          previewGrid.appendChild(previewItem);
+        };
+        reader.readAsDataURL(file);
       }
     }
 
@@ -2390,7 +2112,9 @@
               description: '我们的第一张合照',
               tags: ['合照', '纪念'],
               uploader: 'boyfriend',
-              uploadedAt: new Date('2024-01-01').toISOString()
+              uploadedAt: new Date('2024-01-01').toISOString(),
+              likes: [],
+              comments: []
             },
             {
               id: 2,
@@ -2398,7 +2122,9 @@
               description: '一起去旅行',
               tags: ['旅行', '风景'],
               uploader: 'girlfriend',
-              uploadedAt: new Date('2024-01-02').toISOString()
+              uploadedAt: new Date('2024-01-02').toISOString(),
+              likes: [],
+              comments: []
             },
             {
               id: 3,
@@ -2406,7 +2132,9 @@
               description: '浪漫的晚餐',
               tags: ['美食', '约会'],
               uploader: 'boyfriend',
-              uploadedAt: new Date('2024-01-03').toISOString()
+              uploadedAt: new Date('2024-01-03').toISOString(),
+              likes: [],
+              comments: []
             }
           ];
           localStorage.setItem('couple-images', JSON.stringify(initialImages));
@@ -2467,7 +2195,7 @@
               </div>
             `
             : '';
-          
+
           imageCard.innerHTML = `
             <div class="image-thumbnail">
               <img src="${image.url}" alt="${image.description}">
@@ -2476,11 +2204,13 @@
               <h3>${image.description}</h3>
               ${tagsHTML}
               <div class="image-meta">
-                <span>上传者: ${image.uploader}</span>
-                <span>${formatDate(image.uploadedAt)}</span>
+                <span><i class="uploader-icon">👤</i> ${image.uploader}</span>
+                <span><i class="date-icon">📅</i> ${formatDate(image.uploadedAt)}</span>
+                <span><i class="like-icon">❤️</i> ${image.likes ? image.likes.length : 0}</span>
               </div>
             </div>
           `;
+
           imageCard.addEventListener('click', () => showImageDetail(image.id));
           imageGrid.appendChild(imageCard);
         });
@@ -2490,13 +2220,25 @@
     // 显示图片详情
     function showImageDetail(imageId) {
       currentImageId = imageId;
-      const detailLoading = document.getElementById('detail-loading');
-      const detailContent = document.getElementById('detail-content');
+      const detailPage = document.getElementById('image-detail-page');
+      const homePage = document.getElementById('home-page');
+      const loading = document.getElementById('detail-loading');
+      const content = document.getElementById('detail-content');
       const detailImage = document.getElementById('detail-image');
       const detailDescription = document.getElementById('detail-description');
       const detailUploader = document.getElementById('detail-uploader');
       const detailTime = document.getElementById('detail-time');
       const detailWelcomeText = document.getElementById('detail-welcome-text');
+      const interactionSection = document.getElementById('interaction-section');
+
+      // 切换页面
+      homePage.style.display = 'none';
+      detailPage.style.display = 'block';
+      loading.style.display = 'block';
+      content.style.display = 'none';
+
+      // 显示欢迎信息
+      detailWelcomeText.textContent = `欢迎，${currentUser}`;
 
       // 模拟加载延迟
       setTimeout(() => {
@@ -2534,7 +2276,6 @@
           detailDescription.textContent = image.description;
           detailUploader.textContent = image.uploader;
           detailTime.textContent = formatDate(image.uploadedAt);
-          detailWelcomeText.textContent = `欢迎，${currentUser}`;
 
           // 添加标签到详情页面
           const detailMeta = document.querySelector('.detail-meta');
@@ -2551,20 +2292,186 @@
             }
           }
 
-          // 添加互动功能
-          addInteractionFeatures(image.id);
+          // 渲染互动功能
+          renderInteractionSection(image);
 
-          detailLoading.style.display = 'none';
-          detailContent.style.display = 'block';
-
-          // 显示详情页面
-          hideAllPages();
-          document.getElementById('image-detail-page').style.display = 'block';
-        } else {
-          alert('图片不存在');
-          showHomePage();
+          loading.style.display = 'none';
+          content.style.display = 'block';
         }
-      }, 300);
+      }, 500);
+    }
+
+    // 渲染互动功能
+    function renderInteractionSection(image) {
+      const interactionSection = document.getElementById('interaction-section');
+      
+      // 检查用户是否已点赞
+      const hasLiked = image.likes && image.likes.includes(currentUser);
+      
+      // 渲染点赞和评论功能
+      interactionSection.innerHTML = `
+        <div style="margin: 20px 0;">
+          <button 
+            onclick="toggleLike(${image.id})"
+            style="
+              padding: 10px 20px;
+              background-color: ${hasLiked ? 'rgba(255, 10, 10, 0.25)' : 'rgba(10, 255, 255, 0.25)';};
+              color: ${hasLiked ? '#f00' : '#0ff'};
+              border: 1px solid ${hasLiked ? '#f00' : '#0ff'};
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 1rem;
+              font-weight: 600;
+              transition: all 0.4s ease;
+              box-shadow: 
+                0 0 15px ${hasLiked ? 'rgba(255, 10, 10, 0.4)' : 'rgba(10, 255, 255, 0.4)'};
+                inset 0 0 15px ${hasLiked ? 'rgba(255, 10, 10, 0.1)' : 'rgba(10, 255, 255, 0.1)'};
+            "
+          >
+            <span style="display: flex; align-items: center; gap: 5px;">
+              <span>❤️</span>
+              <span>点赞 (${image.likes ? image.likes.length : 0})</span>
+            </span>
+          </button>
+        </div>
+        
+        <div style="margin: 30px 0;">
+          <h3 style="margin-bottom: 20px;">评论</h3>
+          
+          <!-- 评论表单 -->
+          <form onsubmit="addComment(event, ${image.id})" style="margin-bottom: 30px;">
+            <div class="form-group">
+              <textarea 
+                placeholder="写下你的评论..."
+                rows="3"
+                style="
+                  width: 100%;
+                  padding: 15px;
+                  background-color: rgba(5, 5, 20, 0.9);
+                  border: 1px solid rgba(10, 255, 255, 0.4);
+                  border-radius: 8px;
+                  color: #0ff;
+                  resize: vertical;
+                "
+              ></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">发布评论</button>
+          </form>
+          
+          <!-- 评论列表 -->
+          <div id="comments-list">
+            ${renderComments(image.comments || [])}
+          </div>
+        </div>
+      `;
+    }
+
+    // 渲染评论
+    function renderComments(comments) {
+      if (!comments || comments.length === 0) {
+        return '<p style="color: rgba(10, 255, 255, 0.7); text-align: center; padding: 20px;">暂无评论，快来发表第一条评论吧！</p>';
+      }
+
+      return comments.map(comment => `
+        <div style="
+          background-color: rgba(5, 5, 20, 0.9);
+          border: 1px solid rgba(10, 255, 255, 0.3);
+          border-radius: 8px;
+          padding: 15px;
+          margin-bottom: 15px;
+        ">
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+          ">
+            <span style="
+              font-weight: 600;
+              color: #f0f;
+              text-shadow: 0 0 5px rgba(255, 10, 150, 0.5);
+            ">${comment.user}</span>
+            <span style="
+              font-size: 0.9rem;
+              color: rgba(10, 255, 255, 0.7);
+            ">${formatDate(comment.timestamp)}</span>
+          </div>
+          <p style="
+            color: rgba(10, 255, 255, 0.8);
+            line-height: 1.6;
+          ">${comment.content}</p>
+        </div>
+      `).join('');
+    }
+
+    // 切换点赞状态
+    function toggleLike(imageId) {
+      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      const imageIndex = storedImages.findIndex(img => img.id === imageId);
+      
+      if (imageIndex !== -1) {
+        const image = storedImages[imageIndex];
+        
+        // 初始化点赞数组（如果不存在）
+        if (!image.likes) {
+          image.likes = [];
+        }
+        
+        // 切换点赞状态
+        const userIndex = image.likes.indexOf(currentUser);
+        if (userIndex === -1) {
+          // 添加点赞
+          image.likes.push(currentUser);
+        } else {
+          // 取消点赞
+          image.likes.splice(userIndex, 1);
+        }
+        
+        // 保存更新
+        localStorage.setItem('couple-images', JSON.stringify(storedImages));
+        
+        // 更新UI
+        renderInteractionSection(image);
+      }
+    }
+
+    // 添加评论
+    function addComment(event, imageId) {
+      event.preventDefault();
+      const commentInput = event.target.querySelector('textarea');
+      const content = commentInput.value.trim();
+      
+      if (!content) {
+        return;
+      }
+      
+      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      const imageIndex = storedImages.findIndex(img => img.id === imageId);
+      
+      if (imageIndex !== -1) {
+        const image = storedImages[imageIndex];
+        
+        // 初始化评论数组（如果不存在）
+        if (!image.comments) {
+          image.comments = [];
+        }
+        
+        // 添加新评论
+        image.comments.push({
+          user: currentUser,
+          content: content,
+          timestamp: new Date().toISOString()
+        });
+        
+        // 保存更新
+        localStorage.setItem('couple-images', JSON.stringify(storedImages));
+        
+        // 清空输入框
+        commentInput.value = '';
+        
+        // 更新UI
+        renderInteractionSection(image);
+      }
     }
 
     // 删除图片
@@ -2573,98 +2480,204 @@
         const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
         const updatedImages = storedImages.filter(img => img.id !== currentImageId);
         localStorage.setItem('couple-images', JSON.stringify(updatedImages));
-        alert('图片删除成功！');
+        
+        // 切换回首页
         showHomePage();
       }
     }
 
-    // 格式化日期
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+    // 执行搜索
+    function performSearch() {
+      const searchInput = document.getElementById('search-input').value.toLowerCase();
+      const tagFilter = document.getElementById('tag-filter').value;
+      const searchResults = document.getElementById('search-results');
+      
+      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      
+      // 执行搜索和筛选
+      let filteredImages = storedImages;
+      
+      // 按关键词搜索
+      if (searchInput) {
+        filteredImages = filteredImages.filter(img => 
+          img.description.toLowerCase().includes(searchInput) ||
+          img.tags.some(tag => tag.toLowerCase().includes(searchInput)) ||
+          img.uploader.toLowerCase().includes(searchInput)
+        );
+      }
+      
+      // 按标签筛选
+      if (tagFilter) {
+        filteredImages = filteredImages.filter(img => 
+          img.tags.includes(tagFilter)
+        );
+      }
+      
+      // 更新搜索结果统计
+      searchResults.textContent = `找到 ${filteredImages.length} 张图片`;
+      
+      // 渲染筛选后的图片
+      renderImages(filteredImages);
+    }
+
+    // 加载标签到筛选下拉框
+    function loadTagsToFilter() {
+      const tagFilter = document.getElementById('tag-filter');
+      const storedImages = JSON.parse(localStorage.getItem('couple-images') || '[]');
+      
+      // 收集所有唯一标签
+      const allTags = new Set();
+      storedImages.forEach(img => {
+        if (img.tags) {
+          img.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      
+      // 清空现有选项（保留默认选项）
+      while (tagFilter.options.length > 1) {
+        tagFilter.remove(1);
+      }
+      
+      // 添加新标签选项
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagFilter.appendChild(option);
       });
     }
 
-    // 显示登录页面
-    function showLoginPage() {
-      hideAllPages();
-      document.getElementById('login-page').style.display = 'block';
+    // 更新标签列表
+    function updateTagList(tags) {
+      const storedTags = JSON.parse(localStorage.getItem('couple-tags') || '[]');
+      const updatedTags = [...new Set([...storedTags, ...tags])];
+      localStorage.setItem('couple-tags', JSON.stringify(updatedTags));
     }
 
-    // 显示首页
-    function showHomePage() {
-      hideAllPages();
-      document.getElementById('home-page').style.display = 'block';
-      document.getElementById('welcome-text').textContent = `欢迎，${currentUser}`;
-      loadImages();
-    }
+    // 处理纪念日提交
+    function handleAnniversarySubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById('anniversary-title').value;
+      const date = document.getElementById('anniversary-date').value;
 
-    // 显示上传页面
-    function showUploadPage() {
-      hideAllPages();
-      document.getElementById('upload-page').style.display = 'block';
-      document.getElementById('upload-welcome-text').textContent = `欢迎，${currentUser}`;
-    }
+      const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
+      anniversaries.push({
+        id: Date.now(),
+        title: title,
+        date: date
+      });
 
-    // 隐藏所有页面
-    function hideAllPages() {
-      document.getElementById('login-page').style.display = 'none';
-      document.getElementById('home-page').style.display = 'none';
-      document.getElementById('upload-page').style.display = 'none';
-      document.getElementById('image-detail-page').style.display = 'none';
-      document.getElementById('profile-page').style.display = 'none';
-    }
-
-    // 显示个人中心页面
-    function showProfilePage() {
-      hideAllPages();
-      document.getElementById('profile-page').style.display = 'block';
-      document.getElementById('profile-welcome-text').textContent = `欢迎，${currentUser}`;
-      loadProfileInfo();
-    }
-
-    // 加载个人信息
-    function loadProfileInfo() {
-      // 显示用户名
-      document.getElementById('profile-username').textContent = currentUser;
-      
-      // 显示邮箱
-      const userEmail = localStorage.getItem(`user-${currentUser}-email`);
-      document.getElementById('profile-email').textContent = userEmail || '';
-      
-      // 显示注册时间
-      const joinedDate = localStorage.getItem(`user-${currentUser}-joined`);
-      if (joinedDate) {
-        document.getElementById('profile-joined-date').textContent = formatDate(joinedDate);
-      } else {
-        const now = new Date().toISOString();
-        localStorage.setItem(`user-${currentUser}-joined`, now);
-        document.getElementById('profile-joined-date').textContent = formatDate(now);
-      }
-      
-      // 显示最后登录时间
-      const lastLogin = localStorage.getItem(`user-${currentUser}-last-login`);
-      if (lastLogin) {
-        document.getElementById('profile-last-login').textContent = formatDate(lastLogin);
-      } else {
-        const now = new Date().toISOString();
-        localStorage.setItem(`user-${currentUser}-last-login`, now);
-        document.getElementById('profile-last-login').textContent = formatDate(now);
-      }
-      
-      // 计算上传统计
-      calculateUploadStats();
-      
-      // 显示最近上传
-      showRecentUploads();
-      
-      // 加载纪念日
+      localStorage.setItem('couple-anniversaries', JSON.stringify(anniversaries));
+      document.getElementById('anniversary-form').reset();
       loadAnniversaries();
+    }
+
+    // 加载纪念日
+    function loadAnniversaries() {
+      const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
+      const container = document.getElementById('anniversaries-container');
+      const noAnniversaries = document.getElementById('no-anniversaries');
+
+      if (anniversaries.length === 0) {
+        container.style.display = 'none';
+        noAnniversaries.style.display = 'block';
+      } else {
+        container.style.display = 'block';
+        noAnniversaries.style.display = 'none';
+        container.innerHTML = '';
+
+        anniversaries.forEach(anniversary => {
+          const daysUntil = getDaysUntil(anniversary.date);
+          const anniversaryElement = document.createElement('div');
+          anniversaryElement.style = `
+            background-color: rgba(5, 5, 20, 0.9);
+            border: 1px solid rgba(10, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+          `;
+          anniversaryElement.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h4 style="color: #f0f; margin: 0;">${anniversary.title}</h4>
+              <span style="color: rgba(10, 255, 255, 0.8);">${formatDate(anniversary.date)}</span>
+            </div>
+            <p style="color: ${daysUntil === 0 ? '#f00' : 'rgba(10, 255, 255, 0.8); margin: 10px 0;">
+              ${daysUntil === 0 ? '🎉 今天就是纪念日！' : `距离纪念日还有 ${daysUntil} 天`}
+            </p>
+          `;
+          container.appendChild(anniversaryElement);
+        });
+      }
+    }
+
+    // 计算距离指定日期的天数
+    function getDaysUntil(targetDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const target = new Date(targetDate);
+      target.setHours(0, 0, 0, 0);
+      
+      // 调整到今年的对应日期
+      const thisYearTarget = new Date(today.getFullYear(), target.getMonth(), target.getDate());
+      
+      // 如果今年的日期已过，使用明年的日期
+      const effectiveTarget = thisYearTarget < today 
+        ? new Date(today.getFullYear() + 1, target.getMonth(), target.getDate())
+        : thisYearTarget;
+      
+      const diffTime = effectiveTarget - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays;
+    }
+
+    // 切换主题
+    function switchTheme(theme) {
+      const body = document.body;
+      const currentThemeElement = document.getElementById('current-theme');
+      
+      // 保存主题设置
+      localStorage.setItem('couple-theme', theme);
+      currentThemeElement.textContent = getThemeName(theme);
+      
+      // 应用主题样式
+      switch (theme) {
+        case 'cyberpunk':
+          body.style.backgroundColor = '#050505';
+          body.style.backgroundImage = `
+            radial-gradient(circle at 20% 30%, rgba(10, 255, 255, 0.15) 0%, transparent 25%),
+            radial-gradient(circle at 80% 70%, rgba(255, 10, 150, 0.15) 0%, transparent 25%),
+            radial-gradient(circle at 40% 80%, rgba(10, 255, 10, 0.1) 0%, transparent 20%),
+            linear-gradient(to bottom, rgba(5, 5, 20, 0.95), rgba(5, 5, 15, 1));
+          `;
+          break;
+        case 'warm':
+          body.style.backgroundColor = '#1a0a1a';
+          body.style.backgroundImage = `
+            radial-gradient(circle at 20% 30%, rgba(255, 10, 150, 0.15) 0%, transparent 25%),
+            radial-gradient(circle at 80% 70%, rgba(255, 10, 255, 0.15) 0%, transparent 25%),
+            radial-gradient(circle at 40% 80%, rgba(255, 10, 10, 0.1) 0%, transparent 20%),
+            linear-gradient(to bottom, rgba(26, 10, 26, 0.95), rgba(26, 10, 26, 1));
+          `;
+          break;
+        case 'minimal':
+          body.style.backgroundColor = '#f5f5f5';
+          body.style.backgroundImage = `
+            linear-gradient(to bottom, #f5f5f5, #e0e0e0);
+          `;
+          break;
+      }
+    }
+
+    // 获取主题名称
+    function getThemeName(theme) {
+      const themeNames = {
+        cyberpunk: '赛博朋克',
+        warm: '温馨',
+        minimal: '极简'
+      };
+      return themeNames[theme] || '赛博朋克';
     }
 
     // 计算上传统计
@@ -2712,7 +2725,7 @@
             <div class="image-info">
               <h3>${image.description}</h3>
               <div class="image-meta">
-                ${formatDate(image.uploadedAt)}
+                <span>${formatDate(image.uploadedAt)}</span>
               </div>
             </div>
           `;
@@ -2722,242 +2735,84 @@
       }
     }
 
-    // 修改密码
-    function changePassword(newPassword) {
-      // 这里只是模拟修改密码，实际项目中应该有更安全的实现
-      localStorage.setItem(`user-${currentUser}-password`, newPassword);
-      return true;
+    // 显示登录页面
+    function showLoginPage() {
+      document.getElementById('login-page').style.display = 'block';
+      document.getElementById('home-page').style.display = 'none';
+      document.getElementById('upload-page').style.display = 'none';
+      document.getElementById('image-detail-page').style.display = 'none';
+      document.getElementById('profile-page').style.display = 'none';
     }
 
-    // 退出登录
-    function logout() {
-      currentUser = null;
-      localStorage.removeItem('couple-username');
-      showLoginPage();
+    // 显示登录表单
+    function showLoginForm() {
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('register-form').style.display = 'none';
+      document.getElementById('login-tab').style.borderBottom = '3px solid #0ff';
+      document.getElementById('login-tab').style.color = '#0ff';
+      document.getElementById('login-tab').style.textShadow = '0 0 8px rgba(10, 255, 255, 0.7)';
+      document.getElementById('register-tab').style.borderBottom = '3px solid transparent';
+      document.getElementById('register-tab').style.color = 'rgba(10, 255, 255, 0.6)';
+      document.getElementById('register-tab').style.textShadow = 'none';
     }
 
-    // 纪念日相关函数
-    function loadAnniversaries() {
-      const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
-      const container = document.getElementById('anniversaries-container');
-      const noAnniversaries = document.getElementById('no-anniversaries');
-      
-      if (anniversaries.length === 0) {
-        noAnniversaries.style.display = 'block';
-        container.innerHTML = '';
-      } else {
-        noAnniversaries.style.display = 'none';
-        container.innerHTML = '';
-        
-        anniversaries.forEach((anniversary, index) => {
-          const daysUntil = getDaysUntilAnniversary(anniversary.date);
-          const anniversaryElement = document.createElement('div');
-          anniversaryElement.style.cssText = `
-            background-color: rgba(5, 5, 20, 0.9);
-            border: 1px solid rgba(10, 255, 255, 0.4);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 
-              0 0 20px rgba(10, 255, 255, 0.25),
-              0 0 40px rgba(255, 10, 150, 0.15);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-          `;
-          
-          anniversaryElement.innerHTML = `
-            <div style="flex: 1;">
-              <h4 style="
-                color: #f0f;
-                margin-bottom: 10px;
-                text-shadow: 0 0 8px rgba(255, 10, 150, 0.7);
-              ">${anniversary.title}</h4>
-              <p style="
-                color: rgba(10, 255, 255, 0.8);
-                margin-bottom: 5px;
-              ">日期: ${formatDate(anniversary.date)}</p>
-              <p style="
-                font-size: 1.1rem;
-                font-weight: 600;
-                ${daysUntil === 0 ? 'color: #0f0; text-shadow: 0 0 10px rgba(10, 255, 10, 0.7);' : 
-                  daysUntil < 30 ? 'color: #f0f; text-shadow: 0 0 10px rgba(255, 10, 150, 0.7);' : 
-                  'color: rgba(10, 255, 255, 0.8);'}
-              ">
-                ${daysUntil === 0 ? '🎉 今天就是纪念日！' : 
-                  daysUntil === 1 ? '⏰ 明天就是纪念日！' : 
-                  `距离纪念日还有 ${daysUntil} 天`}
-              </p>
-            </div>
-            <button onclick="deleteAnniversary(${index})" style="
-              padding: 10px 20px;
-              background-color: rgba(255, 10, 10, 0.25);
-              color: #f00;
-              border: 1px solid #f00;
-              border-radius: 8px;
-              cursor: pointer;
-              font-size: 1rem;
-              font-weight: 600;
-              transition: all 0.4s ease;
-              box-shadow: 
-                0 0 15px rgba(255, 10, 10, 0.4),
-                inset 0 0 15px rgba(255, 10, 10, 0.1);
-            ">
-              删除
-            </button>
-          `;
-          container.appendChild(anniversaryElement);
-        });
-      }
+    // 显示注册表单
+    function showRegisterForm() {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('register-form').style.display = 'block';
+      document.getElementById('register-tab').style.borderBottom = '3px solid #0ff';
+      document.getElementById('register-tab').style.color = '#0ff';
+      document.getElementById('register-tab').style.textShadow = '0 0 8px rgba(10, 255, 255, 0.7)';
+      document.getElementById('login-tab').style.borderBottom = '3px solid transparent';
+      document.getElementById('login-tab').style.color = 'rgba(10, 255, 255, 0.6)';
+      document.getElementById('login-tab').style.textShadow = 'none';
     }
 
-    function getDaysUntilAnniversary(anniversaryDate) {
-      const today = new Date();
-      const anniversary = new Date(anniversaryDate);
-      const currentYearAnniversary = new Date(today.getFullYear(), anniversary.getMonth(), anniversary.getDate());
+    // 显示首页
+    function showHomePage() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('home-page').style.display = 'block';
+      document.getElementById('upload-page').style.display = 'none';
+      document.getElementById('image-detail-page').style.display = 'none';
+      document.getElementById('profile-page').style.display = 'none';
       
-      let targetDate = currentYearAnniversary;
-      if (targetDate < today) {
-        targetDate = new Date(today.getFullYear() + 1, anniversary.getMonth(), anniversary.getDate());
-      }
+      // 显示欢迎信息
+      document.getElementById('welcome-text').textContent = `欢迎，${currentUser}`;
       
-      const timeDiff = targetDate.getTime() - today.getTime();
-      return Math.ceil(timeDiff / (1000 * 3600 * 24));
+      // 加载图片
+      loadImages();
     }
 
-    function addAnniversary(event) {
-      event.preventDefault();
-      const title = document.getElementById('anniversary-title').value;
-      const date = document.getElementById('anniversary-date').value;
+    // 显示上传页面
+    function showUploadPage() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('home-page').style.display = 'none';
+      document.getElementById('upload-page').style.display = 'block';
+      document.getElementById('image-detail-page').style.display = 'none';
+      document.getElementById('profile-page').style.display = 'none';
       
-      if (!title || !date) return;
-      
-      const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
-      anniversaries.push({ title, date });
-      localStorage.setItem('couple-anniversaries', JSON.stringify(anniversaries));
-      
-      document.getElementById('anniversary-form').reset();
-      loadAnniversaries();
-      showAnniversaryNotification();
+      // 显示欢迎信息
+      document.getElementById('upload-welcome-text').textContent = `欢迎，${currentUser}`;
     }
 
-    function deleteAnniversary(index) {
-      if (confirm('确定要删除这个纪念日吗？')) {
-        const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
-        anniversaries.splice(index, 1);
-        localStorage.setItem('couple-anniversaries', JSON.stringify(anniversaries));
-        loadAnniversaries();
-      }
-    }
-
-    function showAnniversaryNotification() {
-      const anniversaries = JSON.parse(localStorage.getItem('couple-anniversaries') || '[]');
-      const upcomingAnniversaries = anniversaries.filter(anniversary => {
-        const daysUntil = getDaysUntilAnniversary(anniversary.date);
-        return daysUntil <= 7 && daysUntil >= 0;
-      });
+    // 显示个人中心页面
+    function showProfilePage() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('home-page').style.display = 'none';
+      document.getElementById('upload-page').style.display = 'none';
+      document.getElementById('image-detail-page').style.display = 'none';
+      document.getElementById('profile-page').style.display = 'block';
       
-      if (upcomingAnniversaries.length > 0) {
-        setTimeout(() => {
-          const notification = document.createElement('div');
-          notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: rgba(5, 5, 15, 0.95);
-            border: 1px solid rgba(10, 255, 255, 0.4);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 
-              0 0 30px rgba(10, 255, 255, 0.5),
-              0 0 60px rgba(255, 10, 150, 0.3);
-            z-index: 1000;
-            max-width: 350px;
-            animation: slideIn 0.5s ease-out;
-          `;
-          
-          const notificationContent = upcomingAnniversaries.map(anniversary => {
-            const daysUntil = getDaysUntilAnniversary(anniversary.date);
-            return `
-              <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(10, 255, 255, 0.3);">
-                <h4 style="color: #f0f; margin-bottom: 5px;">${anniversary.title}</h4>
-                <p style="color: rgba(10, 255, 255, 0.8);">
-                  ${daysUntil === 0 ? '🎉 今天就是纪念日！' : 
-                    daysUntil === 1 ? '⏰ 明天就是纪念日！' : 
-                    `还有 ${daysUntil} 天`}
-                </p>
-              </div>
-            `;
-          }).join('');
-          
-          notification.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-              <h3 style="color: #0ff; text-shadow: 0 0 10px rgba(10, 255, 255, 0.7); margin: 0;">
-                🎉 纪念日提醒
-              </h3>
-              <button onclick="this.parentElement.parentElement.remove()" style="
-                background: none;
-                border: none;
-                color: #0ff;
-                font-size: 1.2rem;
-                cursor: pointer;
-                padding: 0;
-                line-height: 1;
-              ">×</button>
-            </div>
-            ${notificationContent}
-          `;
-          
-          document.body.appendChild(notification);
-          
-          setTimeout(() => {
-            notification.style.animation = 'slideOut 0.5s ease-in forwards';
-            setTimeout(() => notification.remove(), 500);
-          }, 10000);
-        }, 1000);
-      }
-    }
-
-    // 为纪念日表单添加事件监听器
-    document.addEventListener('DOMContentLoaded', function() {
-      const anniversaryForm = document.getElementById('anniversary-form');
-      if (anniversaryForm) {
-        anniversaryForm.addEventListener('submit', addAnniversary);
-      }
-    });
-
-    // 在加载个人中心时加载纪念日
-    function loadProfileInfo() {
-      // 显示用户名
+      // 显示欢迎信息
+      document.getElementById('profile-welcome-text').textContent = `欢迎，${currentUser}`;
+      
+      // 加载用户信息
       document.getElementById('profile-username').textContent = currentUser;
+      document.getElementById('profile-email').textContent = localStorage.getItem('couple-email') || '';
+      document.getElementById('profile-joined-date').textContent = formatDate(localStorage.getItem('couple-joined-date') || new Date().toISOString());
+      document.getElementById('profile-last-login').textContent = formatDate(localStorage.getItem('couple-last-login') || new Date().toISOString());
       
-      // 显示邮箱
-      const userEmail = localStorage.getItem(`user-${currentUser}-email`);
-      document.getElementById('profile-email').textContent = userEmail || '';
-      
-      // 显示注册时间
-      const joinedDate = localStorage.getItem(`user-${currentUser}-joined`);
-      if (joinedDate) {
-        document.getElementById('profile-joined-date').textContent = formatDate(joinedDate);
-      } else {
-        const now = new Date().toISOString();
-        localStorage.setItem(`user-${currentUser}-joined`, now);
-        document.getElementById('profile-joined-date').textContent = formatDate(now);
-      }
-      
-      // 显示最后登录时间
-      const lastLogin = localStorage.getItem(`user-${currentUser}-last-login`);
-      if (lastLogin) {
-        document.getElementById('profile-last-login').textContent = formatDate(lastLogin);
-      } else {
-        const now = new Date().toISOString();
-        localStorage.setItem(`user-${currentUser}-last-login`, now);
-        document.getElementById('profile-last-login').textContent = formatDate(now);
-      }
-      
-      // 计算上传统计
+      // 加载上传统计
       calculateUploadStats();
       
       // 显示最近上传
@@ -2965,431 +2820,36 @@
       
       // 加载纪念日
       loadAnniversaries();
+      
+      // 加载当前主题
+      const currentTheme = localStorage.getItem('couple-theme') || 'cyberpunk';
+      document.getElementById('current-theme').textContent = getThemeName(currentTheme);
     }
 
-    // 互动功能相关函数
-    function addInteractionFeatures(imageId) {
-      const interactionSection = document.getElementById('interaction-section');
-      if (!interactionSection) return;
-      
-      // 获取点赞和评论数据
-      const likeData = getLikeData(imageId);
-      const comments = getComments(imageId);
-      
-      interactionSection.innerHTML = `
-        <!-- 点赞功能 -->
-        <div style="
-          margin: 20px 0;
-          padding: 20px;
-          background-color: rgba(5, 5, 15, 0.9);
-          border: 1px solid rgba(10, 255, 255, 0.4);
-          border-radius: 12px;
-          box-shadow: 
-            0 0 25px rgba(10, 255, 255, 0.25),
-            0 0 50px rgba(255, 10, 150, 0.15);
-        ">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <button 
-              onclick="toggleLike(${imageId})"
-              id="like-button-${imageId}"
-              style="
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 12px 24px;
-                background-color: ${likeData.liked ? 'rgba(255, 10, 150, 0.4)' : 'rgba(255, 10, 150, 0.25)'};
-                color: #f0f;
-                border: 1px solid #f0f;
-                border-radius: 8px;
-                cursor: pointer;
-                font-size: 1rem;
-                font-weight: 600;
-                transition: all 0.4s ease;
-                box-shadow: 
-                  0 0 15px rgba(255, 10, 150, ${likeData.liked ? '0.6' : '0.4'}),
-                  inset 0 0 15px rgba(255, 10, 150, 0.1);
-              "
-            >
-              <span id="like-icon-${imageId}">${likeData.liked ? '❤️' : '🤍'}</span>
-              <span>${likeData.liked ? '已点赞' : '点赞'}</span>
-              <span id="like-count-${imageId}">${likeData.count}</span>
-            </button>
-            <span style="
-              color: rgba(10, 255, 255, 0.8);
-              font-size: 0.9rem;
-            ">
-              <span id="comment-count-${imageId}">${comments.length}</span> 条评论
-            </span>
-          </div>
-        </div>
-        
-        <!-- 评论功能 -->
-        <div style="
-          margin: 20px 0;
-          padding: 20px;
-          background-color: rgba(5, 5, 15, 0.9);
-          border: 1px solid rgba(10, 255, 255, 0.4);
-          border-radius: 12px;
-          box-shadow: 
-            0 0 25px rgba(10, 255, 255, 0.25),
-            0 0 50px rgba(255, 10, 150, 0.15);
-        ">
-          <h3 style="
-            color: #f0f;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(255, 10, 150, 0.7);
-          ">评论</h3>
-          
-          <!-- 评论输入 -->
-          <form onsubmit="addComment(event, ${imageId})">
-            <div class="form-group">
-              <label for="comment-content-${imageId}">添加评论</label>
-              <textarea 
-                id="comment-content-${imageId}" 
-                rows="3" 
-                placeholder="写下你的评论..."
-                required
-              ></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">发布评论</button>
-          </form>
-          
-          <!-- 评论列表 -->
-          <div id="comments-list-${imageId}" style="
-            margin-top: 25px;
-            max-height: 400px;
-            overflow-y: auto;
-          ">
-            ${comments.length === 0 ? `
-              <div style="
-                text-align: center;
-                padding: 40px;
-                color: rgba(10, 255, 255, 0.6);
-              ">
-                暂无评论，快来发表第一条评论吧！
-              </div>
-            ` : comments.map(comment => `
-              <div style="
-                background-color: rgba(5, 5, 20, 0.9);
-                border: 1px solid rgba(10, 255, 255, 0.4);
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 15px;
-                box-shadow: 
-                  0 0 20px rgba(10, 255, 255, 0.25),
-                  0 0 40px rgba(255, 10, 150, 0.15);
-              ">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                  <h4 style="
-                    color: #f0f;
-                    margin: 0;
-                    text-shadow: 0 0 8px rgba(255, 10, 150, 0.7);
-                  ">${comment.author}</h4>
-                  <span style="
-                    color: rgba(10, 255, 255, 0.6);
-                    font-size: 0.8rem;
-                  ">${formatDate(comment.timestamp)}</span>
-                </div>
-                <p style="
-                  color: rgba(10, 255, 255, 0.8);
-                  line-height: 1.6;
-                  margin: 0;
-                ">${comment.content}</p>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
+    // 退出登录
+    function logout() {
+      localStorage.removeItem('couple-username');
+      currentUser = null;
+      showLoginPage();
     }
 
-    function getLikeData(imageId) {
-      const likeData = JSON.parse(localStorage.getItem('couple-likes') || '{}');
-      if (!likeData[imageId]) {
-        likeData[imageId] = {
-          count: 0,
-          likedBy: []
-        };
-        localStorage.setItem('couple-likes', JSON.stringify(likeData));
-      }
-      
-      return {
-        count: likeData[imageId].count,
-        liked: likeData[imageId].likedBy.includes(currentUser)
-      };
+    // 格式化日期
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
 
-    function toggleLike(imageId) {
-      const likeData = JSON.parse(localStorage.getItem('couple-likes') || '{}');
-      if (!likeData[imageId]) {
-        likeData[imageId] = {
-          count: 0,
-          likedBy: []
-        };
-      }
-      
-      const userIndex = likeData[imageId].likedBy.indexOf(currentUser);
-      if (userIndex > -1) {
-        // 取消点赞
-        likeData[imageId].likedBy.splice(userIndex, 1);
-        likeData[imageId].count--;
-      } else {
-        // 点赞
-        likeData[imageId].likedBy.push(currentUser);
-        likeData[imageId].count++;
-      }
-      
-      localStorage.setItem('couple-likes', JSON.stringify(likeData));
-      
-      // 更新UI
-      addInteractionFeatures(imageId);
-    }
-
-    function getComments(imageId) {
-      const commentsData = JSON.parse(localStorage.getItem('couple-comments') || '{}');
-      return commentsData[imageId] || [];
-    }
-
-    function addComment(event, imageId) {
-      event.preventDefault();
-      const content = document.getElementById(`comment-content-${imageId}`).value;
-      if (!content) return;
-      
-      const commentsData = JSON.parse(localStorage.getItem('couple-comments') || '{}');
-      if (!commentsData[imageId]) {
-        commentsData[imageId] = [];
-      }
-      
-      const newComment = {
-        id: Date.now(),
-        author: currentUser,
-        content: content,
-        timestamp: new Date().toISOString()
-      };
-      
-      commentsData[imageId].push(newComment);
-      localStorage.setItem('couple-comments', JSON.stringify(commentsData));
-      
-      // 清空输入框
-      document.getElementById(`comment-content-${imageId}`).value = '';
-      
-      // 更新UI
-      addInteractionFeatures(imageId);
-    }
-
-    // 主题切换功能
-    function switchTheme(theme) {
-      localStorage.setItem('couple-theme', theme);
-      applyTheme(theme);
-      updateThemeDisplay();
-      showThemeNotification(theme);
-    }
-
-    function applyTheme(theme) {
-      const body = document.body;
-      const styleElement = document.getElementById('theme-styles');
-      
-      let themeStyles = '';
-      
-      switch(theme) {
-        case 'cyberpunk':
-          themeStyles = `
-            body {
-              background-color: #050505;
-              background-image: 
-                radial-gradient(circle at 20% 30%, rgba(10, 255, 255, 0.15) 0%, transparent 25%),
-                radial-gradient(circle at 80% 70%, rgba(255, 10, 150, 0.15) 0%, transparent 25%),
-                radial-gradient(circle at 40% 80%, rgba(10, 255, 10, 0.1) 0%, transparent 20%),
-                linear-gradient(to bottom, rgba(5, 5, 20, 0.95), rgba(5, 5, 15, 1));
-              color: #0ff;
-            }
-            h1, h2, h3 {
-              color: #0ff;
-              text-shadow: 
-                0 0 15px rgba(10, 255, 255, 0.7),
-                0 0 30px rgba(10, 255, 255, 0.3);
-            }
-          `;
-          break;
-          
-        case 'warm':
-          themeStyles = `
-            body {
-              background-color: #1a0f1a;
-              background-image: 
-                radial-gradient(circle at 20% 30%, rgba(255, 10, 150, 0.15) 0%, transparent 25%),
-                radial-gradient(circle at 80% 70%, rgba(255, 150, 10, 0.15) 0%, transparent 25%),
-                linear-gradient(to bottom, rgba(26, 15, 26, 0.95), rgba(20, 10, 20, 1));
-              color: #ff80c0;
-            }
-            h1, h2, h3 {
-              color: #ff80c0;
-              text-shadow: 
-                0 0 15px rgba(255, 128, 192, 0.7),
-                0 0 30px rgba(255, 128, 192, 0.3);
-            }
-            .card, .header {
-              background-color: rgba(26, 15, 26, 0.9);
-              border-color: rgba(255, 128, 192, 0.4);
-              box-shadow: 
-                0 0 25px rgba(255, 128, 192, 0.25),
-                0 0 50px rgba(255, 128, 192, 0.15);
-            }
-          `;
-          break;
-          
-        case 'minimal':
-          themeStyles = `
-            body {
-              background-color: #f5f5f5;
-              background-image: 
-                linear-gradient(to bottom, #f5f5f5, #e8e8e8);
-              color: #333;
-            }
-            body::before {
-              background: none;
-            }
-            h1, h2, h3 {
-              color: #333;
-              text-shadow: none;
-              background: none !important;
-              -webkit-background-clip: text;
-              background-clip: text;
-              color: #333 !important;
-              animation: none !important;
-            }
-            .card, .header {
-              background-color: rgba(255, 255, 255, 0.9);
-              border-color: rgba(0, 0, 0, 0.1);
-              box-shadow: 
-                0 0 25px rgba(0, 0, 0, 0.1),
-                0 0 50px rgba(0, 0, 0, 0.05);
-            }
-            .btn {
-              background-color: rgba(0, 0, 0, 0.1);
-              color: #333;
-              border-color: rgba(0, 0, 0, 0.2);
-              box-shadow: none;
-            }
-            .btn:hover {
-              background-color: rgba(0, 0, 0, 0.2);
-              box-shadow: none;
-            }
-          `;
-          break;
-      }
-      
-      if (styleElement) {
-        styleElement.textContent = themeStyles;
-      } else {
-        const newStyleElement = document.createElement('style');
-        newStyleElement.id = 'theme-styles';
-        newStyleElement.textContent = themeStyles;
-        document.head.appendChild(newStyleElement);
+    // 初始化
+    function init() {
+      // 检查并应用保存的主题
+      const savedTheme = localStorage.getItem('couple-theme');
+      if (savedTheme) {
+        switchTheme(savedTheme);
       }
     }
 
-    function updateThemeDisplay() {
-      const currentThemeElement = document.getElementById('current-theme');
-      if (currentThemeElement) {
-        const currentTheme = localStorage.getItem('couple-theme') || 'cyberpunk';
-        const themeNames = {
-          'cyberpunk': '赛博朋克',
-          'warm': '温馨',
-          'minimal': '极简'
-        };
-        currentThemeElement.textContent = themeNames[currentTheme] || '赛博朋克';
-      }
-    }
-
-    function showThemeNotification(theme) {
-      const themeNames = {
-        'cyberpunk': '赛博朋克',
-        'warm': '温馨',
-        'minimal': '极简'
-      };
-      
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background-color: rgba(5, 5, 15, 0.95);
-        border: 1px solid rgba(10, 255, 255, 0.4);
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 
-          0 0 30px rgba(10, 255, 255, 0.5),
-          0 0 60px rgba(255, 10, 150, 0.3);
-        z-index: 1000;
-        max-width: 350px;
-        animation: slideIn 0.5s ease-out;
-      `;
-      
-      notification.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-          <h3 style="color: #0ff; text-shadow: 0 0 10px rgba(10, 255, 255, 0.7); margin: 0;">
-            🎨 主题切换
-          </h3>
-          <button onclick="this.parentElement.parentElement.remove()" style="
-            background: none;
-            border: none;
-            color: #0ff;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0;
-            line-height: 1;
-          ">×</button>
-        </div>
-        <p style="color: rgba(10, 255, 255, 0.8); margin: 0;">
-          主题已切换为 <strong style="color: #f0f;">${themeNames[theme]}</strong> 风格！
-        </p>
-      `;
-      
-      document.body.appendChild(notification);
-      
-      setTimeout(() => {
-        notification.style.animation = 'slideOut 0.5s ease-in forwards';
-        setTimeout(() => notification.remove(), 500);
-      }, 3000);
-    }
-
-    // 初始化主题
-    function initTheme() {
-      const savedTheme = localStorage.getItem('couple-theme') || 'cyberpunk';
-      applyTheme(savedTheme);
-      updateThemeDisplay();
-    }
-
-    // 在页面加载时初始化主题
-    document.addEventListener('DOMContentLoaded', function() {
-      initTheme();
-    });
-
-    // 添加动画
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-      @keyframes slideOut {
-        from {
-          transform: translateX(0);
-          opacity: 1;
-        }
-        to {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-      }
-    `;
-    document.head.appendChild(style);
+    // 页面加载完成后初始化
+    window.onload = init;
   </script>
 </body>
 </html>
